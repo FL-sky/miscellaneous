@@ -7,6 +7,8 @@ vector<vector<int>> demand;
 vector<vector<bool>> can;
 vector<int> site_bandwidth;
 vector<string> client, server;
+map<string, int> clientID, serverID;
+int icx = 0, isx = 0;
 void readData()
 {
     // 读文件
@@ -43,6 +45,7 @@ void readData()
         // vector<vector<string>> strArray;
         getline(inFile, lineStr);
         {
+            icx = 0;
             stringstream ss(lineStr);
             string str;
             vector<string> stringArr;
@@ -51,6 +54,7 @@ void readData()
             while (getline(ss, str, ','))
             {
                 client.push_back(str);
+                clientID[str] = icx++;
             }
         }
         while (getline(inFile, lineStr))
@@ -69,33 +73,9 @@ void readData()
         }
         inFile.close();
     }
-    // 读取 qos.csv
-    {
-        fileName = "qos.csv";
-        inFileName = prefix + fileName;
-
-        ifstream inFile(inFileName, ios::in);
-        string lineStr;
-        // vector<vector<string>> strArray;
-        getline(inFile, lineStr);
-        while (getline(inFile, lineStr))
-        {
-            // 存成二维表结构
-            stringstream ss(lineStr);
-            string str;
-            vector<bool> boolArr;
-            // 按照逗号分隔
-            getline(ss, str, ',');
-            while (getline(ss, str, ','))
-            {
-                boolArr.push_back(atoi(str.c_str()) < qos_constraint);
-            }
-            can.push_back(boolArr);
-        }
-        inFile.close();
-    }
     // 读取 site_bandwidth.csv
     {
+        isx = 0;
         fileName = "site_bandwidth.csv";
         inFileName = prefix + fileName;
 
@@ -110,9 +90,47 @@ void readData()
             // 按照逗号分隔
             getline(ss, str, ',');
             server.push_back(str);
+            serverID[str] = isx++;
             while (getline(ss, str, ','))
             {
                 site_bandwidth.push_back(atoi(str.c_str()));
+            }
+        }
+        inFile.close();
+    }
+    // 读取 qos.csv
+    {
+        fileName = "qos.csv";
+        inFileName = prefix + fileName;
+
+        ifstream inFile(inFileName, ios::in);
+        string lineStr;
+        vector<vector<string>> strArray;
+        // getline(inFile, lineStr);
+        while (getline(inFile, lineStr))
+        {
+            // 存成二维表结构
+            stringstream ss(lineStr);
+            string str;
+            vector<string> strArr;
+            // 按照逗号分隔
+            // getline(ss, str, ',');
+            while (getline(ss, str, ','))
+            {
+                strArr.push_back(str);
+            }
+            strArray.push_back(strArr);
+        }
+        can.resize(server.size());
+        for (int i = 0; i < server.size(); i++)
+            can[i].resize(client.size());
+        for (int i = 1; i < strArray.size(); i++)
+        {
+            int svid = serverID[strArray[i][0]];
+            for (int j = 1; j < strArray[i].size(); j++)
+            {
+                int clid = clientID[strArray[0][j]];
+                can[svid][clid] = atoi(strArray[i][j].c_str()) < qos_constraint;
             }
         }
         inFile.close();
@@ -218,6 +236,7 @@ void solv()
 {
     // 写文件
     ofstream outFile;
+    // const string ofileName = "./output/solution.txt";
     const string ofileName = "/output/solution.txt";
     outFile.open(ofileName, ios::out); // 打开模式可省略
     // outFile << "name" << ',' << "age" << ',' << "hobby" << endl;
@@ -256,7 +275,7 @@ void solv()
         for (int c = 0; c < client.size(); c++)
         {
             outFile << client[c] << ":";
-            int cnt[135 + 10];
+            int cnt[135];
             memset(cnt, 0, sizeof(cnt));
             for (int i = mcf.g[c]; i; i = mcf.e[i].nxt)
             {
@@ -266,7 +285,7 @@ void solv()
                 }
             }
             bool prt = false;
-            for (int i = 0; i < 135 + 10; i++)
+            for (int i = 0; i < 135; i++)
             {
                 if (cnt[i] > 0)
                 {
