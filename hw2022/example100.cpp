@@ -10,7 +10,7 @@ vector<string> client, server;
 void readData()
 {
     // 读文件
-    const string prefix = "./data/";
+    const string prefix = "/data/";
     // const string prefix = "./littleData/";
     string fileName;
     string inFileName;
@@ -202,7 +202,8 @@ void solv()
 {
     // 写文件
     ofstream outFile;
-    outFile.open("./output/solution.txt", ios::out); // 打开模式可省略
+    const string ofileName = "/output/solution.txt";
+    outFile.open(ofileName, ios::out); // 打开模式可省略
     // outFile << "name" << ',' << "age" << ',' << "hobby" << endl;
     for (int it = 0; it < demand.size(); it++)
     {
