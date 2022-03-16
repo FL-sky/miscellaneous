@@ -121,81 +121,97 @@ void readData()
 class micmxf
 {
 public:
-    const static int MAXN = 170 + 10;
-    const static int MAXM = 94500 + 10;
-    int s, t, cnt = 1;
-    int maxflow, mincost;
-    int dis[MAXN], head[MAXN], incf[MAXN], pre[MAXN]; // dis表示最短路，incf表示当前增广路上最小流量，pre表示前驱
-    bool vis[MAXN];
-    struct EDGE
+    const int inf = 1000000000;
+    const static int N = 35 + 135 + 10, M = 35 * 135 + 35 + 135 + 10;
+    struct Edge
     {
-        int next, to, dis, flow;
+        int v, f, nxt;
         int raw;
-    } ee[MAXM << 1];
-    void add(int from, int to, int flow, int dis)
+    };
+    int src, sink;
+    int g[N + 10], nume;
+    Edge e[M << 1];
+
+    void addedge(int u, int v, int c)
     {
-        ee[++cnt].next = head[from];
-        ee[cnt].to = to;
-        ee[cnt].dis = dis;
-        ee[cnt].flow = flow;
-        ee[cnt].raw = flow;
-        head[from] = cnt;
+        e[++nume].v = v;
+        e[nume].f = c;
+        e[nume].raw = c;
+        e[nume].nxt = g[u];
+        g[u] = nume;
+
+        e[++nume].v = u;
+        e[nume].f = 0;
+        e[nume].raw = 0;
+        e[nume].nxt = g[v];
+        g[v] = nume;
     }
-    inline bool spfa()
+
+    void init()
     {
-        queue<int> q;
-        memset(dis, 0x3f, sizeof(dis));
-        memset(vis, 0, sizeof(vis));
-        q.push(s);
-        dis[s] = 0;
-        vis[s] = 1;
-        incf[s] = 1 << 30;
-        while (!q.empty())
+        memset(g, 0, sizeof(g));
+        nume = 1;
+        //
+    }
+
+    queue<int> que;
+    bool vis[N + 10];
+    int dist[N + 10];
+
+    void bfs()
+    {
+        memset(dist, 0, sizeof(dist));
+        while (!que.empty())
+            que.pop();
+        vis[src] = true;
+        que.push(src);
+        while (!que.empty())
         {
-            int u = q.front();
-            vis[u] = 0;
-            q.pop();
-            for (register int i = head[u]; i; i = ee[i].next)
+            int u = que.front();
+            que.pop();
+            for (int i = g[u]; i; i = e[i].nxt)
             {
-                if (!ee[i].flow)
-                    continue; //没有剩余流量
-                int v = ee[i].to;
-                if (dis[v] > dis[u] + ee[i].dis)
+                if (e[i].f && !vis[e[i].v])
                 {
-                    dis[v] = dis[u] + ee[i].dis;
-                    incf[v] = min(incf[u], ee[i].flow); //更新incf
-                    pre[v] = i;
-                    if (!vis[v])
-                        vis[v] = 1, q.push(v);
+                    que.push(e[i].v);
+                    dist[e[i].v] = dist[u] + 1;
+                    vis[e[i].v] = true;
                 }
             }
         }
-        if (dis[t] == 0x3f3f3f3f)
-            return 0;
-        return 1;
     }
-    void MCMF()
+
+    int dfs(int u, int delta)
     {
-        while (spfa())
-        { //如果有增广路
-            int x = t;
-            maxflow += incf[t];
-            mincost += dis[t] * incf[t];
-            int i;
-            while (x != s)
-            { //遍历这条增广路，正向边减流反向边加流
-                i = pre[x];
-                ee[i].flow -= incf[t];
-                ee[i ^ 1].flow += incf[t];
-                x = ee[i ^ 1].to;
+        if (u == sink)
+            return delta;
+        int ret = 0;
+        for (int i = g[u]; i; i = e[i].nxt)
+        {
+            if (e[i].f && dist[e[i].v] == dist[u] + 1)
+            {
+                int dd = dfs(e[i].v, min(e[i].f, delta));
+                e[i].f -= dd;
+                e[i ^ 1].f += dd;
+                delta -= dd;
+                ret += dd;
             }
         }
+        return ret;
     }
-    void init()
+
+    int maxflow(int sum)
     {
-        cnt = 1;
-        memset(head, 0, sizeof(head));
-        mincost = maxflow = 0;
+        int ret = 0;
+        while (sum != ret)
+        {
+            memset(vis, 0, sizeof(vis));
+            bfs();
+            if (!vis[sink])
+                return ret;
+            ret += dfs(src, inf);
+        }
+        return ret;
     }
 } mcf;
 void solv()
@@ -207,8 +223,8 @@ void solv()
     // outFile << "name" << ',' << "age" << ',' << "hobby" << endl;
     for (int it = 0; it < demand.size(); it++)
     {
-        mcf.s = 171;
-        mcf.t = mcf.s + 1;
+        mcf.src = 171;
+        mcf.sink = mcf.src + 1;
         mcf.init();
         for (int i = 0; i < server.size(); i++)
         {
@@ -218,39 +234,35 @@ void solv()
                 {
                     int mx = min(site_bandwidth[i], demand[it][j]);
                     int tp = 1;
-                    while (mx > 0)
-                    {
-                        mcf.add(j, i + client.size(), tp, tp);
-                        mcf.add(i + client.size(), j, 0, -tp);
-                        mx -= tp;
-                        tp = tp << 1;
-                    }
+
+                    mcf.addedge(j, i + client.size(), mx);
+                    // mcf.addedge(i + client.size(), j, 0);
                 }
             }
         }
         for (int j = 0; j < client.size(); j++)
         {
-            mcf.add(mcf.s, j, demand[it][j], 0);
-            mcf.add(j, mcf.s, 0, 0);
+            mcf.addedge(mcf.src, j, demand[it][j]);
+            // mcf.addedge(j, mcf.src, 0);
         }
         for (int i = 0; i < server.size(); i++)
         {
-            mcf.add(i + client.size(), mcf.t, site_bandwidth[i], 0);
-            mcf.add(mcf.t, i + client.size(), 0, 0);
+            mcf.addedge(i + client.size(), mcf.sink, site_bandwidth[i]);
+            // mcf.addedge(mcf.sink, i + client.size(), 0);
         }
-        mcf.MCMF();
-        // printf("%d %d\t\t", mcf.maxflow, mcf.mincost);
+        int sum = accumulate(demand[it].begin(), demand[it].end(), 0);
+        int mf = mcf.maxflow(sum);
+        // printf("it=%d\tmf=%d\n", it, mf);
         for (int c = 0; c < client.size(); c++)
         {
             outFile << client[c] << ":";
             int cnt[135 + 10];
             memset(cnt, 0, sizeof(cnt));
-            for (int i = mcf.head[c]; i; i = mcf.ee[i].next)
+            for (int i = mcf.g[c]; i; i = mcf.e[i].nxt)
             {
-                if (mcf.ee[i].flow >= 0 && mcf.ee[i].to >= client.size() && mcf.ee[i].to < mcf.s)
+                if (mcf.e[i].raw > 0 && mcf.e[i].f >= 0 && mcf.e[i].v >= client.size() && mcf.e[i].v < mcf.src)
                 {
-                    // cout << "<" << server[mcf.ee[i].to - client.size()] << "," << mcf.ee[i].flow << ">";
-                    cnt[mcf.ee[i].to - client.size()] += mcf.ee[i].raw - mcf.ee[i].flow;
+                    cnt[mcf.e[i].v - client.size()] += mcf.e[i].raw - mcf.e[i].f;
                 }
             }
             bool prt = false;
