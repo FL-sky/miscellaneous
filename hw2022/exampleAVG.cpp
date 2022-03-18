@@ -296,7 +296,7 @@ public:
         }
     }
 
-    int dfs(int u, int delta, int lim, int ci)
+    int dfs(int u, int delta, int lim)
     {
         if (u == sink)
             return delta;
@@ -306,12 +306,14 @@ public:
             vector<int> tv;
             for (int i = g[u]; i; i = e[i].nxt)
                 tv.push_back(i);
+
+            // random_shuffle(tv.begin(), tv.end());
             for (int ik = 0; ik < tv.size(); ik++)
             {
-                int i = tv[(ci + ik) % tv.size()];
+                int i = tv[ik];
                 if (e[i].f && dist[e[i].v] == dist[u] + 1 && e[i ^ 1].f < lim)
                 {
-                    int dd = dfs(e[i].v, min(lim, min(e[i].f, delta)), lim, ci);
+                    int dd = dfs(e[i].v, min(lim, min(e[i].f, delta)), lim);
                     e[i].f -= dd;
                     e[i ^ 1].f += dd;
                     delta -= dd;
@@ -325,7 +327,7 @@ public:
             {
                 if (e[i].f && dist[e[i].v] == dist[u] + 1)
                 {
-                    int dd = dfs(e[i].v, min(e[i].f, delta), lim, ci);
+                    int dd = dfs(e[i].v, min(e[i].f, delta), lim);
                     e[i].f -= dd;
                     e[i ^ 1].f += dd;
                     delta -= dd;
@@ -344,8 +346,9 @@ public:
         int mxspt = *max_element(site_bandwidth.begin(), site_bandwidth.end());
         // int delt = (mxspt - mv) / 1000 + 1;
         // int lim = mv;
-        int delt = mxspt / 10000 + 1;
-        int lim = 0;
+        int delt = mxspt / 1000 + 1;
+        int lim = delt;
+
         while (sum != ret)
         {
             for (int i = 0; i < server.size(); i++)
@@ -354,7 +357,7 @@ public:
                 bfs();
                 if (!vis[sink])
                     return ret;
-                int r = dfs(src, inf, lim, i);
+                int r = dfs(src, inf, lim);
                 if (r == 0)
                     break;
                 ret += r;
