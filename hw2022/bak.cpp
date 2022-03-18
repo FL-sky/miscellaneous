@@ -1,31 +1,7 @@
 #include <bits/stdc++.h>
 using namespace std;
-// string trim
-// trim from start (in place)
-static inline void ltrim(std::string &s)
-{
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch)
-                                    { return !std::isspace(ch); }));
-}
 
-// trim from end (in place)
-static inline void rtrim(std::string &s)
-{
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch)
-                         { return !std::isspace(ch); })
-                .base(),
-            s.end());
-}
-
-// trim from both ends (in place)
-static inline void trim(std::string &s)
-{
-    ltrim(s);
-    rtrim(s);
-}
-
-//
-int qos_constraint = -1;
+int qos_constraint = 1e9;
 vector<vector<int>> demand;
 // vector<vector<int>> qos;
 vector<vector<bool>> can;
@@ -33,24 +9,11 @@ vector<int> site_bandwidth;
 vector<string> client, server;
 map<string, int> clientID, serverID;
 int icx = 0, isx = 0;
-
-void getinvalid(int li)
-{
-    // printf("line=%d\n", li);
-    // puts("");
-    // char *str = "ABCDEFG";
-    // for (int i = 0; i < 10000; i++)
-    // {
-    //     str[i] = str[i + 1];
-    // }
-}
 void readData()
 {
     // 读文件
     const string prefix = "/data/";
     // const string prefix = "./littleData/";
-    // const string prefix = "./myData/";
-    // const string prefix = "./test_data/";
     string fileName;
     string inFileName;
 
@@ -64,19 +27,13 @@ void readData()
         // vector<vector<string>> strArray;
         while (getline(inFile, lineStr))
         {
-            string tstr = "qos_constraint=";
-            auto ps = lineStr.find(tstr);
-            if (ps != string::npos)
+            if (lineStr.substr(0, 14) == "qos_constraint")
             {
-                qos_constraint = atoi(lineStr.substr(ps + tstr.length()).c_str());
+                qos_constraint = atoi(lineStr.substr(15).c_str());
                 break;
             }
         }
         inFile.close();
-        if (qos_constraint < 0)
-        {
-            getinvalid(__LINE__);
-        }
     }
     //读取配置 demand
     {
@@ -96,7 +53,6 @@ void readData()
             getline(ss, str, ',');
             while (getline(ss, str, ','))
             {
-                trim(str);
                 client.push_back(str);
                 clientID[str] = icx++;
             }
@@ -111,15 +67,9 @@ void readData()
             getline(ss, str, ',');
             while (getline(ss, str, ','))
             {
-                int xv = atoi(str.c_str());
-                if (!(xv >= 0 && xv <= 550000))
-                {
-                    getinvalid(__LINE__);
-                }
-                intArr.push_back(xv);
+                intArr.push_back(atoi(str.c_str()));
             }
-            if (intArr.size() > 0)
-                demand.push_back(intArr);
+            demand.push_back(intArr);
         }
         inFile.close();
     }
@@ -132,21 +82,6 @@ void readData()
         ifstream inFile(inFileName, ios::in);
         string lineStr;
         getline(inFile, lineStr);
-        struct po
-        {
-            string name;
-            int val;
-            po(string n = "", int v = 0)
-            {
-                name = n;
-                val = v;
-            }
-            bool operator<(const po &b) const
-            {
-                return val < b.val;
-            }
-        };
-        vector<po> vp;
         while (getline(inFile, lineStr))
         {
             // 存成二维表结构
@@ -154,32 +89,12 @@ void readData()
             string str;
             // 按照逗号分隔
             getline(ss, str, ',');
-            trim(str);
-            // server.push_back(str);
-            // serverID[str] = isx++;
-            string svName = str;
-            int xv;
+            server.push_back(str);
+            serverID[str] = isx++;
             while (getline(ss, str, ','))
             {
-                if (str.length())
-                {
-                    xv = atoi(str.c_str());
-                    if (xv > 1000000 || xv < 0)
-                    {
-                        getinvalid(__LINE__);
-                    }
-                    // site_bandwidth.push_back(xv);
-                }
+                site_bandwidth.push_back(atoi(str.c_str()));
             }
-            if (svName.length())
-                vp.push_back(po(svName, xv));
-        }
-        sort(vp.begin(), vp.end());
-        for (int i = 0; i < vp.size(); i++)
-        {
-            server.push_back(vp[i].name);
-            serverID[vp[i].name] = i;
-            site_bandwidth.push_back(vp[i].val);
         }
         inFile.close();
     }
@@ -204,32 +119,23 @@ void readData()
             {
                 strArr.push_back(str);
             }
-            if (strArr.size())
-                strArray.push_back(strArr);
+            strArray.push_back(strArr);
         }
         can.resize(server.size());
         for (int i = 0; i < server.size(); i++)
             can[i].resize(client.size());
         for (int i = 1; i < strArray.size(); i++)
         {
-            trim(strArray[i][0]);
             int svid = serverID[strArray[i][0]];
             for (int j = 1; j < strArray[i].size(); j++)
             {
-                trim(strArray[0][j]);
                 int clid = clientID[strArray[0][j]];
-                int xv = atoi(strArray[i][j].c_str());
-                if (!(xv > 0 && xv <= 1000))
-                {
-                    getinvalid(__LINE__);
-                }
-                can[svid][clid] = (xv < qos_constraint);
+                can[svid][clid] = atoi(strArray[i][j].c_str()) < qos_constraint;
             }
         }
         inFile.close();
     }
 }
-int iter = 0;
 class micmxf
 {
 public:
@@ -259,11 +165,8 @@ public:
         g[v] = nume;
     }
 
-    void init(int cli, int srv)
+    void init()
     {
-        // n = cli + srv + 2;
-        src = cli + srv;
-        sink = src + 1;
         memset(g, 0, sizeof(g));
         nume = 1;
         //
@@ -296,80 +199,52 @@ public:
         }
     }
 
-    int dfs(int u, int delta, int dep, int lim)
+    int dfs(int u, int delta)
     {
         if (u == sink)
             return delta;
         int ret = 0;
-        if (dep == 0)
+        for (int i = g[u]; i; i = e[i].nxt)
         {
-            for (int i = g[u]; i; i = e[i].nxt)
+            if (e[i].f && dist[e[i].v] == dist[u] + 1)
             {
-                if (e[i].f && dist[e[i].v] == dist[u] + 1 && e[i ^ 1].f < lim)
-                {
-                    int dd = dfs(e[i].v, min(lim, min(e[i].f, delta)), dep + 1, lim);
-                    e[i].f -= dd;
-                    e[i ^ 1].f += dd;
-                    delta -= dd;
-                    ret += dd;
-                }
+                int dd = dfs(e[i].v, min(e[i].f, delta));
+                e[i].f -= dd;
+                e[i ^ 1].f += dd;
+                delta -= dd;
+                ret += dd;
             }
         }
-        else
-        {
-            for (int i = g[u]; i; i = e[i].nxt)
-            {
-                if (e[i].f && dist[e[i].v] == dist[u] + 1)
-                {
-                    int dd = dfs(e[i].v, min(e[i].f, delta), dep + 1, lim);
-                    e[i].f -= dd;
-                    e[i ^ 1].f += dd;
-                    delta -= dd;
-                    ret += dd;
-                }
-            }
-        }
-
         return ret;
     }
 
     int maxflow(int sum)
     {
         int ret = 0;
-        int mv = sum / server.size() + 1;
-        int mxspt = *max_element(site_bandwidth.begin(), site_bandwidth.end());
-        int delt = (mxspt - mv) / 1000 + 1;
-        int lim = mv;
         while (sum != ret)
         {
             memset(vis, 0, sizeof(vis));
             bfs();
             if (!vis[sink])
                 return ret;
-            ret += dfs(src, inf, 0, lim);
-            lim += delt;
+            ret += dfs(src, inf);
         }
         return ret;
     }
 } mcf;
-vector<int> cb[135];
 void solv()
 {
-    int cc = demand.size() * 0.05;
     // 写文件
     ofstream outFile;
     // const string ofileName = "./output/solution.txt";
-    if (client.size() > 35 || server.size() > 135)
-    {
-        getinvalid(__LINE__);
-    }
-    const string ofileName = "/output/solution.txt";
-    // const string ofileName = "./output/solution.txt";
+    const string ofileName = "/output/solutionh.txt";
     outFile.open(ofileName, ios::out); // 打开模式可省略
-    int start = server.size() - 1;
+    // outFile << "name" << ',' << "age" << ',' << "hobby" << endl;
     for (int it = 0; it < demand.size(); it++)
     {
-        mcf.init(client.size(), server.size());
+        mcf.src = 171;
+        mcf.sink = mcf.src + 1;
+        mcf.init();
         for (int i = 0; i < server.size(); i++)
         {
             for (int j = 0; j < client.size(); j++)
@@ -377,98 +252,57 @@ void solv()
                 if (can[i][j])
                 {
                     int mx = min(site_bandwidth[i], demand[it][j]);
-                    ///服务器到客户端
-                    mcf.addedge(i, j + server.size(), mx);
+                    int tp = 1;
+
+                    mcf.addedge(j, i + client.size(), mx);
                     // mcf.addedge(i + client.size(), j, 0);
                 }
             }
         }
-        for (int i = 0; i < server.size(); i++)
-        {
-            mcf.addedge(mcf.src, i, site_bandwidth[i]);
-            // mcf.addedge(j, mcf.src, 0);
-        }
         for (int j = 0; j < client.size(); j++)
         {
-            mcf.addedge(j + server.size(), mcf.sink, demand[it][j]);
+            mcf.addedge(mcf.src, j, demand[it][j]);
+            // mcf.addedge(j, mcf.src, 0);
+        }
+        for (int i = 0; i < server.size(); i++)
+        {
+            mcf.addedge(i + client.size(), mcf.sink, site_bandwidth[i]);
             // mcf.addedge(mcf.sink, i + client.size(), 0);
         }
         int sum = accumulate(demand[it].begin(), demand[it].end(), 0);
-
-        iter = it;
-        int mf = 0;
-
-        mf = mcf.maxflow(sum);
-
-        assert(mf == sum);
-        bool ck = true;
-        int ussv[135];
-
-        int cnt[135];
-        memset(ussv, 0, sizeof(ussv));
+        int mf = mcf.maxflow(sum);
+        // printf("it=%d\tmf=%d\n", it, mf);
         for (int c = 0; c < client.size(); c++)
         {
             outFile << client[c] << ":";
+            int cnt[135];
             memset(cnt, 0, sizeof(cnt));
-            for (int i = mcf.g[c + server.size()]; i; i = mcf.e[i].nxt)
+            for (int i = mcf.g[c]; i; i = mcf.e[i].nxt)
             {
-                if (mcf.e[i].raw == 0)
+                if (mcf.e[i].raw > 0 && mcf.e[i].f >= 0 && mcf.e[i].v >= client.size() && mcf.e[i].v < mcf.src)
                 {
-                    int sv_id = mcf.e[i].v;
-                    cnt[sv_id] += mcf.e[i].f;
-                    ussv[sv_id] += mcf.e[i].f;
-                    if (ussv[sv_id] > site_bandwidth[sv_id])
-                    {
-                        getinvalid(__LINE__);
-                    }
+                    cnt[mcf.e[i].v - client.size()] += mcf.e[i].raw - mcf.e[i].f;
                 }
             }
-
-            if (accumulate(cnt, cnt + 135, 0) != demand[it][c])
-            {
-                int x = accumulate(cnt, cnt + 135, 0);
-                int y = demand[it][c];
-                getinvalid(__LINE__);
-            }
             bool prt = false;
-            for (int i = 0; i < server.size(); i++)
+            for (int i = 0; i < 135; i++)
             {
                 if (cnt[i] > 0)
                 {
                     if (prt)
-                    {
                         outFile << ",";
-                        // putchar(',');
-                    }
                     outFile << "<" << server[i] << "," << cnt[i] << ">";
-
                     prt = true;
                 }
             }
             outFile << endl;
-            for (int i = 0; i < server.size(); i++)
-                cb[i].push_back(ussv[i]);
         }
     }
     outFile.close();
-}
-
-int getchengben()
-{
-    const double eps = 1e-8;
-    int s = 0;
-    int t = ceil(cb[0].size() * 0.95 + eps) + eps;
-    for (int i = 0; i < server.size(); i++)
-    {
-        sort(cb[i].begin(), cb[i].end());
-        s += cb[i][t - 1];
-    }
-    return s;
 }
 int main()
 {
     readData();
     solv();
-    // printf("chengben=%d\n", getchengben());
     return 0;
 }

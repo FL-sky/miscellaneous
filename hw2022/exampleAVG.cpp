@@ -296,18 +296,22 @@ public:
         }
     }
 
-    int dfs(int u, int delta, int dep, int lim)
+    int dfs(int u, int delta, int lim, int ci)
     {
         if (u == sink)
             return delta;
         int ret = 0;
-        if (dep == 0)
+        if (u == src)
         {
+            vector<int> tv;
             for (int i = g[u]; i; i = e[i].nxt)
+                tv.push_back(i);
+            for (int ik = 0; ik < tv.size(); ik++)
             {
+                int i = tv[(ci + ik) % tv.size()];
                 if (e[i].f && dist[e[i].v] == dist[u] + 1 && e[i ^ 1].f < lim)
                 {
-                    int dd = dfs(e[i].v, min(lim, min(e[i].f, delta)), dep + 1, lim);
+                    int dd = dfs(e[i].v, min(lim, min(e[i].f, delta)), lim, ci);
                     e[i].f -= dd;
                     e[i ^ 1].f += dd;
                     delta -= dd;
@@ -321,7 +325,7 @@ public:
             {
                 if (e[i].f && dist[e[i].v] == dist[u] + 1)
                 {
-                    int dd = dfs(e[i].v, min(e[i].f, delta), dep + 1, lim);
+                    int dd = dfs(e[i].v, min(e[i].f, delta), lim, ci);
                     e[i].f -= dd;
                     e[i ^ 1].f += dd;
                     delta -= dd;
@@ -336,17 +340,25 @@ public:
     int maxflow(int sum)
     {
         int ret = 0;
-        int mv = sum / server.size() + 1;
+        // int mv = sum / server.size() + 1;
         int mxspt = *max_element(site_bandwidth.begin(), site_bandwidth.end());
-        int delt = (mxspt - mv) / 1000 + 1;
-        int lim = mv;
+        // int delt = (mxspt - mv) / 1000 + 1;
+        // int lim = mv;
+        int delt = mxspt / 10000 + 1;
+        int lim = 0;
         while (sum != ret)
         {
-            memset(vis, 0, sizeof(vis));
-            bfs();
-            if (!vis[sink])
-                return ret;
-            ret += dfs(src, inf, 0, lim);
+            for (int i = 0; i < server.size(); i++)
+            {
+                memset(vis, 0, sizeof(vis));
+                bfs();
+                if (!vis[sink])
+                    return ret;
+                int r = dfs(src, inf, lim, i);
+                if (r == 0)
+                    break;
+                ret += r;
+            }
             lim += delt;
         }
         return ret;
@@ -358,15 +370,21 @@ void solv()
     int cc = demand.size() * 0.05;
     // 写文件
     ofstream outFile;
+    // const string ofileName = "/output/solution.txt";
+    const string ofileName = "./output/solution.txt";
     // const string ofileName = "./output/solution.txt";
     if (client.size() > 35 || server.size() > 135)
     {
         getinvalid(__LINE__);
     }
-    const string ofileName = "/output/solution.txt";
-    // const string ofileName = "./output/solution.txt";
     outFile.open(ofileName, ios::out); // 打开模式可省略
     int start = server.size() - 1;
+    //
+    ofstream outsv;
+    // const string ofileName = "/output/solution.txt";
+    const string svfile = "/home/fx/softdoc/gitfiles/miscellaneous/hw2022/sv.txt";
+    outsv.open(svfile, ios::out); // 打开模式可省略
+    //
     for (int it = 0; it < demand.size(); it++)
     {
         mcf.init(client.size(), server.size());
@@ -446,8 +464,13 @@ void solv()
                 }
             }
             outFile << endl;
+
             for (int i = 0; i < server.size(); i++)
+            {
                 cb[i].push_back(ussv[i]);
+                outsv << ussv[i] << "\t";
+            }
+            outsv << endl;
         }
     }
     outFile.close();
@@ -469,6 +492,6 @@ int main()
 {
     readData();
     solv();
-    // printf("chengben=%d\n", getchengben());
+    printf("chengben=%d\n", getchengben());
     return 0;
 }

@@ -296,37 +296,20 @@ public:
         }
     }
 
-    int dfs(int u, int delta, int dep, int lim)
+    int dfs(int u, int delta)
     {
         if (u == sink)
             return delta;
         int ret = 0;
-        if (dep == 0)
+        for (int i = g[u]; i; i = e[i].nxt)
         {
-            for (int i = g[u]; i; i = e[i].nxt)
+            if (e[i].f && dist[e[i].v] == dist[u] + 1)
             {
-                if (e[i].f && dist[e[i].v] == dist[u] + 1 && e[i ^ 1].f < lim)
-                {
-                    int dd = dfs(e[i].v, min(lim, min(e[i].f, delta)), dep + 1, lim);
-                    e[i].f -= dd;
-                    e[i ^ 1].f += dd;
-                    delta -= dd;
-                    ret += dd;
-                }
-            }
-        }
-        else
-        {
-            for (int i = g[u]; i; i = e[i].nxt)
-            {
-                if (e[i].f && dist[e[i].v] == dist[u] + 1)
-                {
-                    int dd = dfs(e[i].v, min(e[i].f, delta), dep + 1, lim);
-                    e[i].f -= dd;
-                    e[i ^ 1].f += dd;
-                    delta -= dd;
-                    ret += dd;
-                }
+                int dd = dfs(e[i].v, min(e[i].f, delta));
+                e[i].f -= dd;
+                e[i ^ 1].f += dd;
+                delta -= dd;
+                ret += dd;
             }
         }
 
@@ -346,7 +329,7 @@ public:
             bfs();
             if (!vis[sink])
                 return ret;
-            ret += dfs(src, inf, 0, lim);
+            ret += dfs(src, inf);
             lim += delt;
         }
         return ret;
@@ -469,6 +452,6 @@ int main()
 {
     readData();
     solv();
-    // printf("chengben=%d\n", getchengben());
+    printf("chengben=%d\n", getchengben());
     return 0;
 }

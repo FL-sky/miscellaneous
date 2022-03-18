@@ -49,7 +49,7 @@ void readData()
     // 读文件
     const string prefix = "/data/";
     // const string prefix = "./littleData/";
-    // const string prefix = "./myData/";
+    // const string prefix = "./data/";
     // const string prefix = "./test_data/";
     string fileName;
     string inFileName;
@@ -136,14 +136,12 @@ void readData()
         {
             string name;
             int val;
-            po(string n = "", int v = 0)
+            po(string n = "", int v = 0) : name(n), val(v)
             {
-                name = n;
-                val = v;
             }
             bool operator<(const po &b) const
             {
-                return val < b.val;
+                return val > b.val;
             }
         };
         vector<po> vp;
@@ -234,39 +232,35 @@ class micmxf
 {
 public:
     const int inf = 1000000000;
-    const static int N = 35 + 135 + 10, M = 35 * 135 + 35 + 135 + 10;
-    struct Edge
+    const static int N = 35 + 135 + 2;
+    struct po
     {
-        int v, f, nxt;
-        int raw;
-    };
+        int f, raw;
+        void init()
+        {
+            f = raw = 0;
+        }
+    } mz[N][N];
     int src, sink;
-    int g[N + 10], nume;
-    Edge e[M << 1];
-
-    void addedge(int u, int v, int c)
-    {
-        e[++nume].v = v;
-        e[nume].f = c;
-        e[nume].raw = c;
-        e[nume].nxt = g[u];
-        g[u] = nume;
-
-        e[++nume].v = u;
-        e[nume].f = 0;
-        e[nume].raw = 0;
-        e[nume].nxt = g[v];
-        g[v] = nume;
-    }
 
     void init(int cli, int srv)
     {
         // n = cli + srv + 2;
         src = cli + srv;
         sink = src + 1;
-        memset(g, 0, sizeof(g));
-        nume = 1;
+        for (int i = 0; i <= sink; i++)
+        {
+            for (int j = 0; j <= sink; j++)
+            {
+                mz[i][j].init();
+            }
+        }
         //
+    }
+    void addedge(int u, int v, int w)
+    {
+        mz[u][v].f = mz[u][v].raw = w;
+        mz[v][u].f = mz[v][u].raw = 0;
     }
 
     queue<int> que;
@@ -284,52 +278,75 @@ public:
         {
             int u = que.front();
             que.pop();
-            for (int i = g[u]; i; i = e[i].nxt)
+            for (int i = 0; i <= sink; i++)
             {
-                if (e[i].f && !vis[e[i].v])
+                if (mz[u][i].f && !vis[i])
                 {
-                    que.push(e[i].v);
-                    dist[e[i].v] = dist[u] + 1;
-                    vis[e[i].v] = true;
+                    que.push(i);
+                    dist[i] = dist[u] + 1;
+                    vis[i] = true;
                 }
             }
         }
     }
 
-    int dfs(int u, int delta, int dep, int lim)
+    int dfs(int u, int delta, int mv)
     {
         if (u == sink)
             return delta;
         int ret = 0;
-        if (dep == 0)
+        if (u == src)
         {
-            for (int i = g[u]; i; i = e[i].nxt)
+            for (int ik = 0; ik < server.size(); ik++)
             {
-                if (e[i].f && dist[e[i].v] == dist[u] + 1 && e[i ^ 1].f < lim)
+                int i = ik;
+                if (mz[u][i].f && dist[i] == dist[u] + 1 && mz[i][u].f <= mv)
                 {
-                    int dd = dfs(e[i].v, min(lim, min(e[i].f, delta)), dep + 1, lim);
-                    e[i].f -= dd;
-                    e[i ^ 1].f += dd;
+                    int dd = dfs(i, min(mz[u][i].f, delta), mv);
+                    mz[u][i].f -= dd;
+                    mz[i][u].f += dd;
                     delta -= dd;
                     ret += dd;
                 }
             }
         }
-        else
+        else if (u >= 0 && u < server.size())
         {
-            for (int i = g[u]; i; i = e[i].nxt)
+            for (int i = server.size(); i <= src; i++)
             {
-                if (e[i].f && dist[e[i].v] == dist[u] + 1)
+                if (mz[u][i].f && dist[i] == dist[u] + 1 && mz[i][u].f <= mv)
                 {
-                    int dd = dfs(e[i].v, min(e[i].f, delta), dep + 1, lim);
-                    e[i].f -= dd;
-                    e[i ^ 1].f += dd;
+                    int dd = dfs(i, min(mz[u][i].f, delta), mv);
+                    mz[u][i].f -= dd;
+                    mz[i][u].f += dd;
                     delta -= dd;
                     ret += dd;
                 }
             }
         }
-
+        else if (u >= server.size() && u < src)
+        {
+            for (int i = 0; i < server.size(); i++)
+            {
+                if (mz[u][i].f && dist[i] == dist[u] + 1 && mz[i][u].f <= mv)
+                {
+                    int dd = dfs(i, min(mz[u][i].f, delta), mv);
+                    mz[u][i].f -= dd;
+                    mz[i][u].f += dd;
+                    delta -= dd;
+                    ret += dd;
+                }
+            }
+            int i = sink;
+            if (mz[u][i].f && dist[i] == dist[u] + 1 && mz[i][u].f <= mv)
+            {
+                int dd = dfs(i, min(mz[u][i].f, delta), mv);
+                mz[u][i].f -= dd;
+                mz[i][u].f += dd;
+                delta -= dd;
+                ret += dd;
+            }
+        }
         return ret;
     }
 
@@ -337,17 +354,20 @@ public:
     {
         int ret = 0;
         int mv = sum / server.size() + 1;
-        int mxspt = *max_element(site_bandwidth.begin(), site_bandwidth.end());
-        int delt = (mxspt - mv) / 1000 + 1;
-        int lim = mv;
+        int t2 = 1;
         while (sum != ret)
         {
-            memset(vis, 0, sizeof(vis));
-            bfs();
-            if (!vis[sink])
-                return ret;
-            ret += dfs(src, inf, 0, lim);
-            lim += delt;
+            for (int i = 0; i < server.size() * 1.25; i++)
+            {
+                memset(vis, 0, sizeof(vis));
+                bfs();
+                if (!vis[sink])
+                    break;
+                // ret += dfs(src, inf);
+                ret += dfs(src, min(sum, mv * (i + 1)), mv);
+            }
+            mv = mv + t2;
+            t2 = t2 << 1;
         }
         return ret;
     }
@@ -366,7 +386,6 @@ void solv()
     const string ofileName = "/output/solution.txt";
     // const string ofileName = "./output/solution.txt";
     outFile.open(ofileName, ios::out); // 打开模式可省略
-    int start = server.size() - 1;
     for (int it = 0; it < demand.size(); it++)
     {
         mcf.init(client.size(), server.size());
@@ -394,13 +413,10 @@ void solv()
             // mcf.addedge(mcf.sink, i + client.size(), 0);
         }
         int sum = accumulate(demand[it].begin(), demand[it].end(), 0);
+        if (server.size() > 22 && demand.size() > 22)
+            iter = it;
+        int mf = mcf.maxflow(sum);
 
-        iter = it;
-        int mf = 0;
-
-        mf = mcf.maxflow(sum);
-
-        assert(mf == sum);
         bool ck = true;
         int ussv[135];
 
@@ -410,13 +426,13 @@ void solv()
         {
             outFile << client[c] << ":";
             memset(cnt, 0, sizeof(cnt));
-            for (int i = mcf.g[c + server.size()]; i; i = mcf.e[i].nxt)
+            for (int i = 0; i < server.size(); i++)
             {
-                if (mcf.e[i].raw == 0)
+                if (mcf.mz[c][i].raw == 0 /*&& mcf.mz[c][i].f >= 0 && mcf.mz[c][i].f < mcf.mz[c][i].raw*/)
                 {
-                    int sv_id = mcf.e[i].v;
-                    cnt[sv_id] += mcf.e[i].f;
-                    ussv[sv_id] += mcf.e[i].f;
+                    int sv_id = i;
+                    cnt[sv_id] += mcf.mz[c + server.size()][i].f;
+                    ussv[sv_id] += mcf.mz[c + server.size()][i].f;
                     if (ussv[sv_id] > site_bandwidth[sv_id])
                     {
                         getinvalid(__LINE__);
@@ -431,7 +447,7 @@ void solv()
                 getinvalid(__LINE__);
             }
             bool prt = false;
-            for (int i = 0; i < server.size(); i++)
+            for (int i = 0; i < 135; i++)
             {
                 if (cnt[i] > 0)
                 {
@@ -469,6 +485,6 @@ int main()
 {
     readData();
     solv();
-    // printf("chengben=%d\n", getchengben());
+    printf("chengben=%d\n", getchengben());
     return 0;
 }

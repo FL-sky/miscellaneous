@@ -37,7 +37,6 @@ int icx = 0, isx = 0;
 void getinvalid(int li)
 {
     // printf("line=%d\n", li);
-    // puts("");
     // char *str = "ABCDEFG";
     // for (int i = 0; i < 10000; i++)
     // {
@@ -47,9 +46,9 @@ void getinvalid(int li)
 void readData()
 {
     // 读文件
-    const string prefix = "/data/";
+    // const string prefix = "/data/";
     // const string prefix = "./littleData/";
-    // const string prefix = "./myData/";
+    const string prefix = "./myData/";
     // const string prefix = "./test_data/";
     string fileName;
     string inFileName;
@@ -136,14 +135,12 @@ void readData()
         {
             string name;
             int val;
-            po(string n = "", int v = 0)
+            po(string n = "", int v = 0) : name(n), val(v)
             {
-                name = n;
-                val = v;
             }
             bool operator<(const po &b) const
             {
-                return val < b.val;
+                return val > b.val;
             }
         };
         vector<po> vp;
@@ -229,7 +226,7 @@ void readData()
         inFile.close();
     }
 }
-int iter = 0;
+
 class micmxf
 {
 public:
@@ -296,40 +293,22 @@ public:
         }
     }
 
-    int dfs(int u, int delta, int dep, int lim)
+    int dfs(int u, int delta, int mv)
     {
         if (u == sink)
             return delta;
         int ret = 0;
-        if (dep == 0)
+        for (int i = g[u]; i; i = e[i].nxt)
         {
-            for (int i = g[u]; i; i = e[i].nxt)
+            if (e[i].f && dist[e[i].v] == dist[u] + 1 && e[i ^ 1].f <= mv)
             {
-                if (e[i].f && dist[e[i].v] == dist[u] + 1 && e[i ^ 1].f < lim)
-                {
-                    int dd = dfs(e[i].v, min(lim, min(e[i].f, delta)), dep + 1, lim);
-                    e[i].f -= dd;
-                    e[i ^ 1].f += dd;
-                    delta -= dd;
-                    ret += dd;
-                }
+                int dd = dfs(e[i].v, min(e[i].f, delta), mv);
+                e[i].f -= dd;
+                e[i ^ 1].f += dd;
+                delta -= dd;
+                ret += dd;
             }
         }
-        else
-        {
-            for (int i = g[u]; i; i = e[i].nxt)
-            {
-                if (e[i].f && dist[e[i].v] == dist[u] + 1)
-                {
-                    int dd = dfs(e[i].v, min(e[i].f, delta), dep + 1, lim);
-                    e[i].f -= dd;
-                    e[i ^ 1].f += dd;
-                    delta -= dd;
-                    ret += dd;
-                }
-            }
-        }
-
         return ret;
     }
 
@@ -337,17 +316,15 @@ public:
     {
         int ret = 0;
         int mv = sum / server.size() + 1;
-        int mxspt = *max_element(site_bandwidth.begin(), site_bandwidth.end());
-        int delt = (mxspt - mv) / 1000 + 1;
-        int lim = mv;
+        int b = 1;
         while (sum != ret)
         {
             memset(vis, 0, sizeof(vis));
             bfs();
             if (!vis[sink])
-                return ret;
-            ret += dfs(src, inf, 0, lim);
-            lim += delt;
+                break;
+            // ret += dfs(src, inf);
+            ret += dfs(src, inf, mv);
         }
         return ret;
     }
@@ -355,7 +332,6 @@ public:
 vector<int> cb[135];
 void solv()
 {
-    int cc = demand.size() * 0.05;
     // 写文件
     ofstream outFile;
     // const string ofileName = "./output/solution.txt";
@@ -363,10 +339,9 @@ void solv()
     {
         getinvalid(__LINE__);
     }
-    const string ofileName = "/output/solution.txt";
-    // const string ofileName = "./output/solution.txt";
+    // const string ofileName = "/output/solution.txt";
+    const string ofileName = "./output/solution1.txt";
     outFile.open(ofileName, ios::out); // 打开模式可省略
-    int start = server.size() - 1;
     for (int it = 0; it < demand.size(); it++)
     {
         mcf.init(client.size(), server.size());
@@ -377,46 +352,41 @@ void solv()
                 if (can[i][j])
                 {
                     int mx = min(site_bandwidth[i], demand[it][j]);
-                    ///服务器到客户端
-                    mcf.addedge(i, j + server.size(), mx);
+
+                    mcf.addedge(j, i + client.size(), mx);
                     // mcf.addedge(i + client.size(), j, 0);
                 }
             }
         }
-        for (int i = 0; i < server.size(); i++)
-        {
-            mcf.addedge(mcf.src, i, site_bandwidth[i]);
-            // mcf.addedge(j, mcf.src, 0);
-        }
         for (int j = 0; j < client.size(); j++)
         {
-            mcf.addedge(j + server.size(), mcf.sink, demand[it][j]);
+            mcf.addedge(mcf.src, j, demand[it][j]);
+            // mcf.addedge(j, mcf.src, 0);
+        }
+        for (int i = 0; i < server.size(); i++)
+        {
+            mcf.addedge(i + client.size(), mcf.sink, site_bandwidth[i]);
             // mcf.addedge(mcf.sink, i + client.size(), 0);
         }
         int sum = accumulate(demand[it].begin(), demand[it].end(), 0);
+        int mf = mcf.maxflow(sum);
 
-        iter = it;
-        int mf = 0;
-
-        mf = mcf.maxflow(sum);
-
-        assert(mf == sum);
         bool ck = true;
         int ussv[135];
-
-        int cnt[135];
         memset(ussv, 0, sizeof(ussv));
         for (int c = 0; c < client.size(); c++)
         {
             outFile << client[c] << ":";
+
+            int cnt[135];
             memset(cnt, 0, sizeof(cnt));
-            for (int i = mcf.g[c + server.size()]; i; i = mcf.e[i].nxt)
+            for (int i = mcf.g[c]; i; i = mcf.e[i].nxt)
             {
-                if (mcf.e[i].raw == 0)
+                if (mcf.e[i].raw > 0 && mcf.e[i].f >= 0 && mcf.e[i].v >= client.size() && mcf.e[i].v < mcf.src)
                 {
-                    int sv_id = mcf.e[i].v;
-                    cnt[sv_id] += mcf.e[i].f;
-                    ussv[sv_id] += mcf.e[i].f;
+                    int sv_id = mcf.e[i].v - client.size();
+                    cnt[sv_id] += mcf.e[i].raw - mcf.e[i].f;
+                    ussv[sv_id] += mcf.e[i].raw - mcf.e[i].f;
                     if (ussv[sv_id] > site_bandwidth[sv_id])
                     {
                         getinvalid(__LINE__);
@@ -431,7 +401,7 @@ void solv()
                 getinvalid(__LINE__);
             }
             bool prt = false;
-            for (int i = 0; i < server.size(); i++)
+            for (int i = 0; i < 135; i++)
             {
                 if (cnt[i] > 0)
                 {
@@ -469,6 +439,6 @@ int main()
 {
     readData();
     solv();
-    // printf("chengben=%d\n", getchengben());
+    printf("chengben=%d\n", getchengben());
     return 0;
 }
